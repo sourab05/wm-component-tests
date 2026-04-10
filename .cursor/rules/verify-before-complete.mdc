@@ -1,0 +1,45 @@
+---
+description: Agents must verify changes actually applied before marking tasks as completed. Prevents silent failures from StrReplace mismatches.
+alwaysApply: true
+---
+
+# Never Mark a Task Complete Without Proof
+
+## The Problem
+
+`StrReplace` silently fails when `old_string` doesn't match. Agents must NEVER assume success — they must confirm it.
+
+## Rules
+
+1. **After every `StrReplace` call**, verify the change took effect by reading the modified lines (use `Read` with offset/limit or `Grep` for the new string). If the tool returned an error, the change failed — do NOT move on.
+
+2. **After bulk edits** (e.g. updating mappings across a file), run a verification step:
+   - `Grep` for at least 2-3 of the new values to confirm they exist in the file
+   - If any expected change is missing, retry with corrected `old_string`
+
+3. **Before marking a TODO as `completed`**:
+   - There MUST be evidence the change landed (tool output confirming success, grep output showing new value, or compilation passing)
+   - If you cannot prove it, mark it `in_progress` and investigate
+
+4. **For code changes**, run the compiler/linter after edits to catch issues:
+   ```
+   npx tsc --noEmit
+   ```
+
+5. **For subagents**: When delegating to a Task subagent, instruct it to include verification output in its final response. Do NOT trust a subagent's "done" claim without seeing proof in its returned output.
+
+## Examples
+
+```
+# BAD — blind trust
+StrReplace(old="foo", new="bar")  →  "completed"
+
+# GOOD — verify first
+StrReplace(old="foo", new="bar")
+Grep(pattern="bar", path=file)    →  confirms match exists  →  "completed"
+
+# GOOD — catch failure
+StrReplace(old="foo", new="bar")  →  "not found" error
+Read(file, around expected line)  →  find actual text
+StrReplace(old=actual_text, new="bar")  →  retry with correct context
+```

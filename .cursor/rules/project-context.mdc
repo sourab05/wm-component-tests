@@ -1,0 +1,56 @@
+# WM Component Tests — Project Context
+
+## What This Project Is
+
+A data-driven Playwright test framework for testing WaveMaker Studio widget properties. It tests every property for a widget across **Canvas** (Studio DOM) and **Preview** (RN Web Bundle iframe), consuming zero AI tokens at runtime.
+
+## Architecture: 5-Phase Pipeline
+
+```
+npx tsx scripts/run-widget-pipeline.ts Button
+```
+
+1. **Discover Selectors** (AI Skill, one-time) — Opens Studio, adds widget, inspects Properties/Styles/Events/Device tabs, canvas DOM, preview DOM → outputs `widget-configs/{widget}.config.json`
+2. **Generate Test Cases** (AI Skill, one-time) — Reads config, generates test cases with XPath assertions for canvas + preview → outputs `test-cases/{widget}-test-cases.json` → **human reviews**
+3. **Canvas Testing** (Playwright, 0 tokens) — Per-case: set property via panel XPath → assert canvas via `@name`/`@widgettype` XPath
+4. **Preview Testing** (Playwright, 0 tokens) — Batched: open preview once → assert all via `@data-testid`/`@aria-label` XPath in rn-bundle iframe
+5. **Report + Analysis** (deterministic + AI on failure) — JSON/HTML report → S3 upload → auto-analyze failures
+
+## 3 DOM Selector Contexts
+
+- **Context A: Studio Properties Panel** — XPaths to property input fields (text, toggle, dropdown, binding)
+- **Context B: Canvas** — XPaths using `@name`, `@widgettype`, CSS classes (e.g., `//button[@name='button1']//span[@class='btn-caption']`)
+- **Context C: Preview** — XPaths using `@data-testid`, `@aria-label` in the rn-bundle iframe (e.g., `//div[@data-testid='button1_caption']`)
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/types.ts` | All TypeScript interfaces (TestCase, WidgetConfig, AssertStrategy, etc.) |
+| `src/helpers/*.ts` | Reusable helpers: auth, app nav, widget drag-drop, property setter, asserters, preview manager |
+| `src/tests/widget-properties.spec.ts` | THE data-driven Playwright test runner |
+| `src/tests/global-setup.ts` | Auth once per suite |
+| `scripts/run-widget-pipeline.ts` | CLI orchestrator for all 5 phases |
+| `widget-configs/*.config.json` | Per-widget selector configs (output of discover skill) |
+| `test-cases/*-test-cases.json` | Per-widget test cases (output of generate skill, human-approved) |
+| `skills/discover-widget-selectors/SKILL.md` | AI skill: auto-inspect Studio DOM |
+| `skills/generate-test-cases/SKILL.md` | AI skill: generate test cases from config |
+| `skills/analyze-failures/SKILL.md` | AI skill: categorize failures |
+
+## WaveMaker Studio Conventions
+
+- Login: PlatformDB REST (`wavemaker.ai` domains) or WaveMaker form login (`wavemakeronline.com`)
+- Preview shortcut: `Ctrl+Alt+R`
+- Preview 2-phase build: outer 8-step + inner rn-bundle 3-step
+- Drag-drop: JS slow-mouse approach (mouse.down → 600ms → 20 step move → mouse.up)
+- After dialog close: canvas selection resets to `page_content1` — must re-click widget
+- Widget naming: `{prefix}{N}` (e.g., `button1`, `label1`)
+- Preview testID pattern: `{prefix}{N}_{subElement}` (e.g., `button1_caption`)
+
+## Related Repo
+
+The existing Style-Workspace-Automation repo at `/Users/jeevansi_700069/Documents/Style-Workspace-Automation` has reusable patterns:
+- `src/matrix/widget-xpaths.ts` — canvas + preview XPaths for 40+ widgets
+- `tests/screens/studio.screen.ts` — auth flow patterns
+- `src/api/studioClient.ts` — Studio REST API client
+- `wdio/config/wdio.browserstack.conf.ts` — BrowserStack device testing (future phase)
