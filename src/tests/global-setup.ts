@@ -2,7 +2,7 @@ import { chromium, FullConfig } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import { ENV } from '../helpers/env';
-import { studioLogin, ensureAuthCookies } from '../helpers/studio-auth';
+import { studioLogin } from '../helpers/studio-auth';
 
 const AUTH_FILE = path.join(process.cwd(), '.test-cache', 'auth.json');
 

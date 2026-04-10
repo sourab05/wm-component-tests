@@ -31,13 +31,13 @@ todos:
     status: completed
   - id: skill-discover-selectors
     content: "Write discover-widget-selectors/SKILL.md: AI skill that opens Studio, adds widget, walks all property tabs, inspects canvas + preview DOM, outputs widget-config.json"
-    status: pending
+    status: completed
   - id: button-config
     content: Run discover-widget-selectors skill for Button to produce button.config.json with all Properties Panel XPaths, canvas XPaths, preview XPaths
     status: pending
   - id: skill-generate-test-cases
     content: "Write generate-test-cases/SKILL.md: custom Claude skill that reads widget-config.json + types.ts schema, generates machine-executable test-cases JSON from scratch with XPaths for canvas + preview"
-    status: pending
+    status: completed
   - id: button-test-cases
     content: Run generate-test-cases skill for Button to produce button-test-cases.json; human reviews and approves
     status: pending
@@ -48,8 +48,8 @@ todos:
     content: "Build global-setup.ts: auth, open app, add widget (once per suite)"
     status: completed
   - id: reporter
-    content: "Build test-reporter.ts: structured JSON + HTML report output, auto-upload to S3"
-    status: pending
+    content: "Build test-reporter.ts: structured JSON + HTML report output (S3 upload deferred to future phase)"
+    status: completed
   - id: skill-analyze
     content: "Write analyze-failures/SKILL.md: AI skill auto-triggered on failure to categorize failures and create GitHub issues"
     status: completed
