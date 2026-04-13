@@ -7,6 +7,9 @@
     "test:headed": "playwright test --headed",
     "test:widget": "playwright test src/tests/widget-properties.spec.ts",
     "pipeline": "tsx scripts/run-widget-pipeline.ts",
+    "skill:discover": "tsx scripts/run-skill.ts discover",
+    "skill:generate": "tsx scripts/run-skill.ts generate",
+    "skill:analyze": "tsx scripts/run-skill.ts analyze",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

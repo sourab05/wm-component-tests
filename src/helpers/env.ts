@@ -42,6 +42,10 @@ export const ENV = {
   canvasPath: process.env.CANVAS_PATH || 's/page/Main?project-id=${PROJECT_ID}',
   studioLoginPath: process.env.STUDIO_LOGIN_PATH || '/login/authenticate',
   applicationName: process.env.APPLICATION_NAME || 'FORM',
+  /** If set, navigate here before opening APPLICATION_NAME (use when STUDIO_BASE_URL redirects into a project). */
+  studioAppsUrl: process.env.STUDIO_APPS_URL || '',
+  /** Set to 1 to skip the apps dashboard and open the Main page URL directly (old behavior). */
+  skipApplicationOpen: process.env.SKIP_APPLICATION_OPEN === '1' || process.env.SKIP_APPLICATION_OPEN === 'true',
   widgetName: process.env.WIDGET_NAME || 'Button',
 
   get isGoogleAuth(): boolean {

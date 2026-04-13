@@ -11,6 +11,11 @@ export async function openComponentsPanel(page: Page): Promise<void> {
     'button[name="wm-category-page-build"]',
     'button[title="Building Blocks"]',
     'button:has(i.wms-widgets-prefabs)',
+    'button[title*="Building Blocks"]',
+    'div[class*="left-sidebar"] button[title*="Component"]',
+    'div[class*="left-sidebar"] button[title*="Widget"]',
+    '[data-testid="components-panel"]',
+    'button:has(i[class*="grid"])',
   ];
 
   for (const sel of selectors) {

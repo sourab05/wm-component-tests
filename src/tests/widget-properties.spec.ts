@@ -1,8 +1,7 @@
-import { test, Page, Frame } from '@playwright/test';
+import { test, Page } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import type { WidgetConfig, TestCasesFile, TestCase, TestResult } from '../types';
-import { ENV } from '../helpers/env';
+import type { WidgetConfig, TestCasesFile, TestResult } from '../types';
 import { navigateToCanvas, waitForStudioReady, saveProject } from '../helpers/studio-app';
 import { addWidgetToCanvas, reselectWidget } from '../helpers/widget-manager';
 import { applyTestCase, applyCleanup } from '../helpers/property-setter';
@@ -31,41 +30,41 @@ function loadTestCases(widget: string): TestCasesFile {
 
 const config = loadConfig(WIDGET_NAME);
 const { testCases } = loadTestCases(WIDGET_NAME);
-const results: TestResult[] = [];
-const startTime = Date.now();
 
-test.describe.configure({ mode: 'default' });
+// Single test with generous timeout: ~3 min per TC (preview build is slow)
+const PER_CASE_TIMEOUT_MS = 3 * 60 * 1000;
+const TOTAL_TIMEOUT_MS = testCases.length * PER_CASE_TIMEOUT_MS;
 
 test.describe(`${WIDGET_NAME} Property Tests`, () => {
-  let studioPage: Page;
-  let actualWidgetName: string = config.defaultName;
+  test.setTimeout(TOTAL_TIMEOUT_MS);
 
-  test.beforeAll(async ({ browser }) => {
+  test(`Run all ${testCases.length} test cases`, async ({ browser }) => {
+    const results: TestResult[] = [];
+    const startTime = Date.now();
+    let failed = 0;
+
     const context = await browser.newContext();
-    studioPage = await context.newPage();
+    const studioPage = await context.newPage();
 
     await navigateToCanvas(studioPage);
     await waitForStudioReady(studioPage);
     await addWidgetToCanvas(studioPage, config.widget, config.componentPanelId, config.defaultName);
 
-    // Detect the actual widget name from the URL (&f=buttonN) or page
+    let actualWidgetName = config.defaultName;
     const url = studioPage.url();
     const match = url.match(new RegExp(`f=(${config.prefix}\\d+)`));
     if (match) {
       actualWidgetName = match[1];
     } else {
-      // Fallback: read from the right panel header (e.g. "wm-button: button4")
       const header = await studioPage.locator('.activewidget-info .widget-info').first()
         .textContent({ timeout: 5000 }).catch(() => '');
       const headerMatch = header?.match(new RegExp(`(${config.prefix}\\d+)`));
       if (headerMatch) actualWidgetName = headerMatch[1];
     }
     console.log(`Actual widget name: ${actualWidgetName}`);
-  });
 
-  // --- CANVAS PHASE: per-case property set + assert ---
-  for (const tc of testCases) {
-    test(`[Canvas] ${tc.id}: ${tc.testCase}`, async () => {
+    for (const tc of testCases) {
+      console.log(`\n--- ${tc.id}: ${tc.testCase} ---`);
       const caseStart = Date.now();
       const result: TestResult = {
         id: tc.id,
@@ -80,87 +79,75 @@ test.describe(`${WIDGET_NAME} Property Tests`, () => {
         await reselectWidget(studioPage, actualWidgetName);
         await applyTestCase(studioPage, config, tc);
         await studioPage.waitForTimeout(500);
+
         await assertCanvas(studioPage, tc.canvasAssert, actualWidgetName);
         result.canvasResult = 'pass';
+        console.log(`  [Canvas] ${tc.id} PASSED`);
       } catch (err: any) {
         result.canvasResult = 'fail';
         result.canvasError = err.message;
-        throw err;
-      } finally {
-        result.durationMs = Date.now() - caseStart;
-        results.push(result);
+        failed++;
+        console.error(`  [Canvas] ${tc.id} FAILED: ${err.message}`);
       }
 
-      if (tc.cleanup) {
-        await applyCleanup(studioPage, config, tc);
-      }
-    });
-  }
-
-  // --- PREVIEW PHASE: individual cases ---
-  const individualCases = testCases.filter(tc => tc.previewMode === 'individual');
-
-  for (const tc of individualCases) {
-    test(`[Preview-Individual] ${tc.id}: ${tc.testCase}`, async () => {
-      const existingResult = results.find(r => r.id === tc.id);
-
-      await reselectWidget(studioPage, actualWidgetName);
-      await applyTestCase(studioPage, config, tc);
-      await saveProject(studioPage);
-
-      const previewPage = await openPreview(studioPage);
       try {
-        const rnFrame = await waitForPreviewBuild(previewPage);
-        await assertPreview(rnFrame, tc.previewAssert, actualWidgetName);
-        if (existingResult) existingResult.previewResult = 'pass';
+        await saveProject(studioPage);
+        const previewPage = await openPreview(studioPage);
+
+        try {
+          const rnFrame = await waitForPreviewBuild(previewPage);
+          await assertPreview(rnFrame, tc.previewAssert, actualWidgetName);
+          result.previewResult = 'pass';
+          console.log(`  [Preview] ${tc.id} PASSED`);
+        } catch (err: any) {
+          result.previewResult = 'fail';
+          result.previewError = err.message;
+          failed++;
+          console.error(`  [Preview] ${tc.id} FAILED: ${err.message}`);
+        } finally {
+          await returnToStudio(studioPage, previewPage);
+        }
       } catch (err: any) {
-        if (existingResult) {
-          existingResult.previewResult = 'fail';
-          existingResult.previewError = err.message;
+        if (result.previewResult === 'skip') {
+          result.previewResult = 'fail';
+          result.previewError = err.message;
+          failed++;
+          console.error(`  [Preview] ${tc.id} FAILED (open/build): ${err.message}`);
         }
-        throw err;
-      } finally {
-        await returnToStudio(studioPage, previewPage);
       }
+
+      result.durationMs = Date.now() - caseStart;
+      results.push(result);
 
       if (tc.cleanup) {
-        await applyCleanup(studioPage, config, tc);
-      }
-    });
-  }
-
-  // --- PREVIEW PHASE: batched cases ---
-  const batchedCases = testCases.filter(tc => tc.previewMode === 'batched');
-
-  if (batchedCases.length > 0) {
-    test(`[Preview-Batched] Assert ${batchedCases.length} properties in preview`, async () => {
-      await saveProject(studioPage);
-      const previewPage = await openPreview(studioPage);
-
-      try {
-        const rnFrame = await waitForPreviewBuild(previewPage);
-
-        for (const tc of batchedCases) {
-          const existingResult = results.find(r => r.id === tc.id);
-          try {
-            await assertPreview(rnFrame, tc.previewAssert, actualWidgetName);
-            if (existingResult) existingResult.previewResult = 'pass';
-          } catch (err: any) {
-            if (existingResult) {
-              existingResult.previewResult = 'fail';
-              existingResult.previewError = err.message;
-            }
-            console.error(`Preview assertion failed for ${tc.id}: ${err.message}`);
-          }
+        try {
+          await reselectWidget(studioPage, actualWidgetName);
+          await applyCleanup(studioPage, config, tc);
+        } catch (err: any) {
+          console.error(`  [Cleanup] ${tc.id} FAILED: ${err.message}`);
         }
-      } finally {
-        await returnToStudio(studioPage, previewPage);
       }
-    });
-  }
+    }
 
-  test.afterAll(async () => {
     const totalDuration = Date.now() - startTime;
     generateReport(WIDGET_NAME, results, totalDuration);
+
+    const passed = results.filter(r => r.canvasResult === 'pass' && r.previewResult === 'pass').length;
+    console.log(`\n========================================`);
+    console.log(`  ${WIDGET_NAME}: ${passed}/${testCases.length} fully passed, ${failed} assertion failures`);
+    console.log(`  Duration: ${Math.round(totalDuration / 1000)}s`);
+    console.log(`========================================\n`);
+
+    if (failed > 0) {
+      const failedCases = results
+        .filter(r => r.canvasResult === 'fail' || r.previewResult === 'fail')
+        .map(r => {
+          const parts: string[] = [];
+          if (r.canvasResult === 'fail') parts.push(`Canvas: ${r.canvasError}`);
+          if (r.previewResult === 'fail') parts.push(`Preview: ${r.previewError}`);
+          return `  ${r.id}: ${parts.join(' | ')}`;
+        });
+      throw new Error(`${failed} assertion(s) failed:\n${failedCases.join('\n')}`);
+    }
   });
 });
