@@ -1,0 +1,150 @@
+{
+  "widget": "Button",
+  "tag": "wm-button",
+  "prefix": "button",
+  "componentPanelId": "#property-Button",
+  "defaultName": "button1",
+  "canvasXPaths": {
+    "root": "//button[@name='{widgetName}']",
+    "caption": "//button[@name='{widgetName}']//span[contains(@class,'btn-caption')]"
+  },
+  "previewXPaths": {},
+  "propertiesPanel": {
+    "Properties": {
+      "Caption": {
+        "xpath": "//li[@id='property-caption']//input[contains(@class,'app-textbox') or contains(@class,'form-control')]",
+        "interactionType": "text"
+      },
+      "Name": {
+        "xpath": "//li[@id='property-name']//input[contains(@class,'app-textbox') or contains(@class,'form-control')]",
+        "interactionType": "text"
+      },
+      "Accesssibile": {
+        "xpath": "//li[@id='property-accessible']//wms-toggle//input[@type='checkbox']",
+        "interactionType": "toggle"
+      },
+      "Accesssibility Label": {
+        "xpath": "//li[@id='property-accessibilitylabel']//input[contains(@class,'app-textbox') or contains(@class,'form-control')]",
+        "interactionType": "text"
+      },
+      "Accesssibility Hint": {
+        "xpath": "//li[@id='property-hint']//input[contains(@class,'app-textbox') or contains(@class,'form-control')]",
+        "interactionType": "text"
+      },
+      "Accesssibility Role": {
+        "xpath": "//li[@id='property-accessibilityrole']//select[contains(@class,'app-select')]",
+        "interactionType": "dropdown"
+      },
+      "Width": {
+        "xpath": "//li[@id='property-skeletonwidth']//input[contains(@class,'app-textbox') or contains(@class,'form-control')]",
+        "interactionType": "text"
+      },
+      "Height": {
+        "xpath": "//li[@id='property-skeletonheight']//input[contains(@class,'app-textbox') or contains(@class,'form-control')]",
+        "interactionType": "text"
+      },
+      "Show": {
+        "xpath": "//li[@id='property-show']//wms-toggle//input[@type='checkbox']",
+        "interactionType": "toggle"
+      },
+      "Disabled": {
+        "xpath": "//li[@id='property-disabled']//wms-toggle//input[@type='checkbox']",
+        "interactionType": "toggle"
+      },
+      "Animation": {
+        "xpath": "//li[@id='property-animation']//select[contains(@class,'app-select')]",
+        "interactionType": "dropdown"
+      },
+      "Disable Touch Effect": {
+        "xpath": "//li[@id='property-disabletoucheffect']//wms-toggle//input[@type='checkbox']",
+        "interactionType": "toggle"
+      },
+      "Show Skeleton": {
+        "xpath": "//li[@id='property-showskeleton']//wms-toggle//input[@type='checkbox']",
+        "interactionType": "toggle"
+      },
+      "Icon Class": {
+        "xpath": "//li[@id='property-iconclass']//input[contains(@class,'app-textbox') or contains(@class,'form-control')]",
+        "interactionType": "text"
+      },
+      "Icon Url": {
+        "xpath": "//li[@id='property-iconurl']//input[contains(@class,'app-textbox') or contains(@class,'form-control')]",
+        "interactionType": "text"
+      },
+      "Icon Width": {
+        "xpath": "//li[@id='property-iconwidth']//input[contains(@class,'app-textbox') or contains(@class,'form-control')]",
+        "interactionType": "text"
+      },
+      "Icon Height": {
+        "xpath": "//li[@id='property-iconheight']//input[contains(@class,'app-textbox') or contains(@class,'form-control')]",
+        "interactionType": "text"
+      },
+      "Icon Margin": {
+        "xpath": "//li[@id='property-iconmargin']//input[contains(@class,'app-textbox') or contains(@class,'form-control')]",
+        "interactionType": "text"
+      },
+      "Icon Position": {
+        "xpath": "//li[@id='property-iconposition']//select[contains(@class,'app-select')]",
+        "interactionType": "dropdown"
+      }
+    },
+    "Styles": {
+      "Variant": {
+        "xpath": "//li[@id='property-variant']//wms-typeahead//input[contains(@class,'typeahead-input')]",
+        "interactionType": "dropdown"
+      },
+      "Image": {
+        "xpath": "//li[@id='property-backgroundimage']//input[contains(@class,'app-textbox') or contains(@class,'form-control')]",
+        "interactionType": "text"
+      },
+      "Repeat": {
+        "xpath": "//li[@id='property-backgroundrepeat']//select[contains(@class,'app-select')]",
+        "interactionType": "dropdown"
+      },
+      "Position": {
+        "xpath": "//li[@id='property-backgroundposition']//input[contains(@class,'app-textbox') or contains(@class,'form-control')]",
+        "interactionType": "text"
+      },
+      "Size": {
+        "xpath": "//li[@id='property-backgroundsize']//input[contains(@class,'app-textbox') or contains(@class,'form-control')]",
+        "interactionType": "text"
+      },
+      "Class Name": {
+        "xpath": "//li[@id='property-class']//input[contains(@class,'app-textbox') or contains(@class,'form-control')]",
+        "interactionType": "text"
+      },
+      "Conditional Class": {
+        "xpath": "//li[@id='property-conditionalclass']//input[contains(@class,'app-textbox') or contains(@class,'form-control')]",
+        "interactionType": "text"
+      }
+    },
+    "Events": {
+      "On Tap": {
+        "xpath": "//li[@id='property-onTap']//wms-event-handler//input[contains(@class,'typeahead-input')]",
+        "interactionType": "text"
+      },
+      "On Double Tap": {
+        "xpath": "//li[@id='property-onDoubletap']//wms-event-handler//input[contains(@class,'typeahead-input')]",
+        "interactionType": "text"
+      },
+      "On Long Tap": {
+        "xpath": "//li[@id='property-onLongtap']//wms-event-handler//input[contains(@class,'typeahead-input')]",
+        "interactionType": "text"
+      },
+      "On Touch Start": {
+        "xpath": "//li[@id='property-onTouchstart']//wms-event-handler//input[contains(@class,'typeahead-input')]",
+        "interactionType": "text"
+      },
+      "On Touch End": {
+        "xpath": "//li[@id='property-onTouchend']//wms-event-handler//input[contains(@class,'typeahead-input')]",
+        "interactionType": "text"
+      }
+    },
+    "Device": {
+      "Show in device": {
+        "xpath": "//li[@id='property-showindevice']//wm-checkboxset",
+        "interactionType": "toggle"
+      }
+    }
+  }
+}

@@ -2,11 +2,19 @@ import { Page, expect } from '@playwright/test';
 import type { AssertDefinition } from '../types';
 
 /**
- * Execute a strategy-based assertion against the canvas DOM.
- * All selectors use XPath targeting WaveMaker's @name, @widgettype, and CSS class attributes.
+ * Resolve {widgetName} placeholders in an XPath string.
  */
-export async function assertCanvas(page: Page, assertion: AssertDefinition): Promise<void> {
-  const locator = page.locator(`xpath=${assertion.xpath}`).first();
+export function resolveXPath(xpath: string, widgetName: string): string {
+  return xpath.replace(/\{widgetName\}/g, widgetName);
+}
+
+/**
+ * Execute a strategy-based assertion against the canvas DOM.
+ * XPaths containing {widgetName} are resolved using the provided widgetName.
+ */
+export async function assertCanvas(page: Page, assertion: AssertDefinition, widgetName?: string): Promise<void> {
+  const xpath = widgetName ? resolveXPath(assertion.xpath, widgetName) : assertion.xpath;
+  const locator = page.locator(`xpath=${xpath}`).first();
 
   switch (assertion.strategy) {
     case 'text-content': {
@@ -50,7 +58,7 @@ export async function assertCanvas(page: Page, assertion: AssertDefinition): Pro
     }
 
     case 'not-exists': {
-      const count = await page.locator(`xpath=${assertion.xpath}`).count();
+      const count = await page.locator(`xpath=${xpath}`).count();
       expect(count).toBe(0);
       break;
     }

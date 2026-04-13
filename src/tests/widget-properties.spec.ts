@@ -34,10 +34,11 @@ const { testCases } = loadTestCases(WIDGET_NAME);
 const results: TestResult[] = [];
 const startTime = Date.now();
 
-test.describe.configure({ mode: 'serial' });
+test.describe.configure({ mode: 'default' });
 
 test.describe(`${WIDGET_NAME} Property Tests`, () => {
   let studioPage: Page;
+  let actualWidgetName: string = config.defaultName;
 
   test.beforeAll(async ({ browser }) => {
     const context = await browser.newContext();
@@ -46,6 +47,20 @@ test.describe(`${WIDGET_NAME} Property Tests`, () => {
     await navigateToCanvas(studioPage);
     await waitForStudioReady(studioPage);
     await addWidgetToCanvas(studioPage, config.widget, config.componentPanelId, config.defaultName);
+
+    // Detect the actual widget name from the URL (&f=buttonN) or page
+    const url = studioPage.url();
+    const match = url.match(new RegExp(`f=(${config.prefix}\\d+)`));
+    if (match) {
+      actualWidgetName = match[1];
+    } else {
+      // Fallback: read from the right panel header (e.g. "wm-button: button4")
+      const header = await studioPage.locator('.activewidget-info .widget-info').first()
+        .textContent({ timeout: 5000 }).catch(() => '');
+      const headerMatch = header?.match(new RegExp(`(${config.prefix}\\d+)`));
+      if (headerMatch) actualWidgetName = headerMatch[1];
+    }
+    console.log(`Actual widget name: ${actualWidgetName}`);
   });
 
   // --- CANVAS PHASE: per-case property set + assert ---
@@ -62,10 +77,10 @@ test.describe(`${WIDGET_NAME} Property Tests`, () => {
       };
 
       try {
-        await reselectWidget(studioPage, config.defaultName);
+        await reselectWidget(studioPage, actualWidgetName);
         await applyTestCase(studioPage, config, tc);
         await studioPage.waitForTimeout(500);
-        await assertCanvas(studioPage, tc.canvasAssert);
+        await assertCanvas(studioPage, tc.canvasAssert, actualWidgetName);
         result.canvasResult = 'pass';
       } catch (err: any) {
         result.canvasResult = 'fail';
@@ -89,14 +104,14 @@ test.describe(`${WIDGET_NAME} Property Tests`, () => {
     test(`[Preview-Individual] ${tc.id}: ${tc.testCase}`, async () => {
       const existingResult = results.find(r => r.id === tc.id);
 
-      await reselectWidget(studioPage, config.defaultName);
+      await reselectWidget(studioPage, actualWidgetName);
       await applyTestCase(studioPage, config, tc);
       await saveProject(studioPage);
 
       const previewPage = await openPreview(studioPage);
       try {
         const rnFrame = await waitForPreviewBuild(previewPage);
-        await assertPreview(rnFrame, tc.previewAssert);
+        await assertPreview(rnFrame, tc.previewAssert, actualWidgetName);
         if (existingResult) existingResult.previewResult = 'pass';
       } catch (err: any) {
         if (existingResult) {
@@ -128,7 +143,7 @@ test.describe(`${WIDGET_NAME} Property Tests`, () => {
         for (const tc of batchedCases) {
           const existingResult = results.find(r => r.id === tc.id);
           try {
-            await assertPreview(rnFrame, tc.previewAssert);
+            await assertPreview(rnFrame, tc.previewAssert, actualWidgetName);
             if (existingResult) existingResult.previewResult = 'pass';
           } catch (err: any) {
             if (existingResult) {
