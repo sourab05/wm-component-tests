@@ -34,6 +34,7 @@ async function switchTab(page: Page, tabName: string): Promise<void> {
  */
 async function setText(page: Page, xpath: string, value: string): Promise<void> {
   const el = page.locator(`xpath=${xpath}`).first();
+  await el.scrollIntoViewIfNeeded().catch(() => {});
   await el.click({ clickCount: 3 }); // triple-click to select all
   await page.waitForTimeout(200);
 
@@ -48,11 +49,29 @@ async function setText(page: Page, xpath: string, value: string): Promise<void> 
 }
 
 /**
- * Toggle a boolean property (click the toggle/checkbox).
+ * Toggle a boolean property. Studio often hides the raw checkbox; click the visible `wms-toggle` host instead.
  */
-async function setToggle(page: Page, xpath: string, value: boolean): Promise<void> {
-  const el = page.locator(`xpath=${xpath}`).first();
-  await el.click();
+async function setToggle(page: Page, xpath: string, _value: boolean): Promise<void> {
+  const field = page.locator(`xpath=${xpath}`).first();
+  await field.scrollIntoViewIfNeeded().catch(() => {});
+
+  const wmsToggle = field.locator('xpath=ancestor::wms-toggle[1]');
+  if ((await wmsToggle.count()) > 0) {
+    const host = wmsToggle.first();
+    if (await host.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await host.click();
+      await page.waitForTimeout(500);
+      return;
+    }
+  }
+
+  const row = field.locator('xpath=ancestor::li[1]');
+  const pseudo = row.locator('.toggle, .switch, span[class*="toggle"], label').first();
+  if (await pseudo.isVisible({ timeout: 1500 }).catch(() => false)) {
+    await pseudo.click();
+  } else {
+    await field.click({ force: true });
+  }
   await page.waitForTimeout(500);
 }
 
@@ -61,6 +80,7 @@ async function setToggle(page: Page, xpath: string, value: boolean): Promise<voi
  */
 async function setDropdown(page: Page, xpath: string, value: string): Promise<void> {
   const el = page.locator(`xpath=${xpath}`).first();
+  await el.scrollIntoViewIfNeeded().catch(() => {});
   await el.click();
   await page.waitForTimeout(500);
 
@@ -82,34 +102,120 @@ async function setDropdown(page: Page, xpath: string, value: string): Promise<vo
 }
 
 /**
- * Open the binding dialog and enter a bind expression.
+ * Open the binding dialog via the bind icon, switch to "Use Expression" tab,
+ * type the expression, and confirm.
+ *
+ * Expression format: Variables.<Name>.dataSet.dataValue
  */
 async function setBinding(page: Page, xpath: string, expression: string): Promise<void> {
   const el = page.locator(`xpath=${xpath}`).first();
+  await el.waitFor({ state: 'visible', timeout: 5000 });
 
-  // Look for the bind icon next to the property field
-  const bindIcon = el.locator('xpath=ancestor::*[1]//button[contains(@class, "bind")]').first();
-  if (await bindIcon.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await bindIcon.click();
-    await page.waitForTimeout(1000);
-  } else {
-    await el.click();
-  }
+  // Step 1: Click the bind icon next to the property field (stay relative to the property row;
+  // never fall back to typing in the text field — that would paste the expression as literal caption).
+  const bindIconSelectors = [
+    'xpath=ancestor::li[1]//button[contains(@class,"bind")]',
+    'xpath=ancestor::li[1]//i[contains(@class,"bind")]/..',
+    'xpath=ancestor::li[1]//span[contains(@class,"bind")]/..',
+    'xpath=ancestor::li[1]//*[contains(@class,"bind") and (self::button or self::a)]',
+    'xpath=ancestor::div[contains(@class,"property")][1]//button[contains(@class,"bind")]',
+    'xpath=ancestor::li[1]//*[@name="wm-bind-property-caption"]',
+  ];
 
-  // In the binding dialog, enter the expression
-  const bindInput = page.locator('textarea[class*="bind"], input[class*="bind-expression"]').first();
-  if (await bindInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-    await bindInput.fill(expression);
-    await page.waitForTimeout(300);
-
-    // Confirm the binding
-    const doneBtn = page.locator('button:has-text("Done"), button:has-text("Bind"), button:has-text("Apply")').first();
-    if (await doneBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await doneBtn.click();
+  let iconClicked = false;
+  for (const sel of bindIconSelectors) {
+    const icon = el.locator(sel).first();
+    if (await icon.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await icon.click();
+      await page.waitForTimeout(1000);
+      iconClicked = true;
+      console.log(`    Bind icon clicked via: ${sel}`);
+      break;
     }
   }
 
-  await page.waitForTimeout(500);
+  if (!iconClicked) {
+    throw new Error(
+      'Bind control not found next to this property; refusing to fill the text box with a binding expression.',
+    );
+  }
+
+  const bindModal = page.locator('.modal.show, .modal.in.show, [role="dialog"]:visible').last();
+  await bindModal.waitFor({ state: 'visible', timeout: 8000 }).catch(() => {
+    throw new Error('Bind dialog did not open after clicking the bind control.');
+  });
+
+  // Step 2: Click "Use Expression" tab in the bind dialog
+  const exprTabSelectors = [
+    'text="Use Expression"',
+    'a:has-text("Use Expression")',
+    'button:has-text("Use Expression")',
+    '.nav-tabs a:has-text("Expression")',
+    'li:has-text("Expression") a',
+  ];
+
+  for (const sel of exprTabSelectors) {
+    const tab = bindModal.locator(sel).first();
+    if (await tab.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await tab.click();
+      await page.waitForTimeout(500);
+      console.log(`    Expression tab clicked via: ${sel}`);
+      break;
+    }
+  }
+
+  // Step 3: Type the expression only inside the bind dialog (avoid Studio page CodeMirrors)
+  const editorSelectors = [
+    '.CodeMirror textarea',
+    'textarea.expression-input',
+    '.bind-expression textarea',
+    '.expression-editor textarea',
+    'textarea[class*="bind"]',
+    '.modal-body textarea',
+    '.CodeMirror',
+  ];
+
+  let typed = false;
+  for (const sel of editorSelectors) {
+    const editor = bindModal.locator(sel).first();
+    if (await editor.isVisible({ timeout: 3000 }).catch(() => false)) {
+      if (sel === '.CodeMirror') {
+        await editor.click();
+        await page.waitForTimeout(200);
+        await page.keyboard.type(expression, { delay: 30 });
+      } else {
+        await editor.fill(expression);
+      }
+      await page.waitForTimeout(300);
+      typed = true;
+      console.log(`    Expression typed via: ${sel} (scoped to bind modal)`);
+      break;
+    }
+  }
+
+  if (!typed) {
+    throw new Error('Expression editor not found inside the bind dialog.');
+  }
+
+  // Step 4: Confirm the binding
+  const confirmSelectors = [
+    'button:has-text("Bind")',
+    'button:has-text("Done")',
+    'button:has-text("Apply")',
+    '.modal-footer button.btn-primary',
+  ];
+
+  for (const sel of confirmSelectors) {
+    const btn = bindModal.locator(sel).first();
+    if (await btn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await btn.click();
+      await page.waitForTimeout(500);
+      console.log(`    Binding confirmed via: ${sel}`);
+      return;
+    }
+  }
+
+  throw new Error('Could not find Bind/Done/Apply in the bind dialog.');
 }
 
 /**
@@ -172,7 +278,8 @@ export async function applyTestCase(page: Page, config: WidgetConfig, tc: TestCa
     throw new Error(`Property section not found in config: "${tc.section}"`);
   }
 
-  await applyInput(page, section.xpath, section.interactionType, tc.input);
+  const inputType = tc.inputType === 'binding' ? 'binding' : section.interactionType;
+  await applyInput(page, section.xpath, inputType, tc.input);
 }
 
 /**

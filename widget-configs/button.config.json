@@ -8,7 +8,10 @@
     "root": "//button[@name='{widgetName}']",
     "caption": "//button[@name='{widgetName}']//span[contains(@class,'btn-caption')]"
   },
-  "previewXPaths": {},
+  "previewXPaths": {
+    "caption": "//div[@data-testid='{widgetName}_caption']",
+    "root": "//div[@data-testid='{widgetName}_caption']/ancestor::div[@data-testid='non_animatableView'][1]"
+  },
   "propertiesPanel": {
     "Properties": {
       "Caption": {

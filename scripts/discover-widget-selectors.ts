@@ -25,10 +25,13 @@ import { openPreview, waitForPreviewBuild } from '../src/helpers/preview-manager
 import type { WidgetConfig, PropertySection, InputType } from '../src/types';
 
 // ── CLI arguments ──────────────────────────────────────────
-const WIDGET_NAME = process.argv[2];
-const WIDGET_TAG = process.argv[3];
-const WIDGET_PREFIX = process.argv[4];
-const COMPONENT_PANEL_ID = process.argv[5];
+// With `npx tsx scripts/discover-widget-selectors.ts Button ...`, argv[2] is the script path; args start after it.
+function discoverCliArgs(): string[] {
+  const idx = process.argv.findIndex(a => /discover-widget-selectors\.[tj]s$/.test(a));
+  if (idx >= 0) return process.argv.slice(idx + 1);
+  return process.argv.slice(2);
+}
+const [WIDGET_NAME, WIDGET_TAG, WIDGET_PREFIX, COMPONENT_PANEL_ID] = discoverCliArgs();
 
 if (!WIDGET_NAME || !WIDGET_TAG || !WIDGET_PREFIX || !COMPONENT_PANEL_ID) {
   console.error('Usage: npx tsx scripts/discover-widget-selectors.ts <Name> <tag> <prefix> <panelId>');
@@ -461,14 +464,14 @@ async function main() {
     console.log('[Step 2] Navigating to canvas...');
     await navigateToCanvas(page);
     await waitForStudioReady(page);
-    console.log('  Canvas ready.\n');
+    console.log('Canvas ready.\n');
 
     // ── Step 3: Check markup for existing widget ──
     console.log(`[Step 3] Checking if <${WIDGET_TAG}> exists via Markup tab...`);
 
     const markupBefore = await getMarkup(page);
     const countBefore = countTagInMarkup(markupBefore, WIDGET_TAG);
-    console.log(`  Markup has ${countBefore} existing <${WIDGET_TAG}> tag(s).`);
+    console.log(`Markup has ${countBefore} existing <${WIDGET_TAG}> tag(s).`);
 
     let widgetInstanceName = DEFAULT_NAME;
 
